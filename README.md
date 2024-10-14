@@ -3,11 +3,13 @@ Data Analysis Project
 
 File Contents:
 
-Analysis Report: Summary of analysis
+Analysis Report.pdf: Summary of analysis
 
 Data Insights - Synthetic Dataset.xlsx : Original dataset
 
-DataAnalysis.ipynb :  Code and test cases
+DataAnalysis_code.ipynb :  Code and test cases without result and plot
+
+DataAnalysis_plots.html :  Exported results and plots from code
 
 SQL Answers.txt : SQL queries
 
