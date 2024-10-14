@@ -1,0 +1,67 @@
+Part 3
+
+4.	Write an SQL query to calculate the total and average admissions for each month over the last two years. Include the month and year in the results.
+
+The provided excel file was directly loaded for querying. Below query in SQLite includes required steps for data processing.
+============================================================================
+WITH calc_date_parts AS (
+SELECT
+CAST(substr(AdmissionDate,instr(AdmissionDate, '/')+1,instr(substr(AdmissionDate,instr(AdmissionDate, '/')+1,7) ,'/')-1) AS INTEGER)AS Month,
+CAST(substr(AdmissionDate,instr(AdmissionDate, '/')+ instr(substr(AdmissionDate,instr(AdmissionDate, '/')+1,7) ,'/')+1,4) As INTEGER)AS Year,
+COUNT(episode_id) as Total_Admissions
+FROM "Data Insights - Synthetic Dataset"
+GROUP BY substr(AdmissionDate,instr(AdmissionDate, '/')+1,instr(substr(AdmissionDate,instr(AdmissionDate, '/')+1,7) ,'/')-1),
+substr(AdmissionDate,instr(AdmissionDate, '/')+ instr(substr(AdmissionDate,instr(AdmissionDate, '/')+1,7) ,'/')+1,4)
+ORDER BY 
+CAST(substr(AdmissionDate,instr(AdmissionDate, '/')+ instr(substr(AdmissionDate,instr(AdmissionDate, '/')+1,7) ,'/')+1,4)  AS INTEGER) ASC,
+CAST(substr(AdmissionDate,instr(AdmissionDate, '/')+1,instr(substr(AdmissionDate,instr(AdmissionDate, '/')+1,7) ,'/')-1) AS INTEGER) ASC
+),
+calc_date_column AS (
+SELECT Month, Year,
+date(Year||'-'||printf('%02d',Month)||'-01') AS Date,
+strftime('%d', date(date(Year||'-'||printf('%02d',Month)||'-01'), 'start of month', '+1 month', '-1 day')) AS days_in_month,
+Total_Admissions
+FROM calc_date_parts
+)
+SELECT Month, Year, Total_Admissions, 
+ROUND(Total_Admissions/days_in_month,2) as Avg_Admissions 
+FROM calc_date_column;
+
+============================================================================
+5.	Write an SQL query to analyse the distribution of TotalCharges by PrincipalDiagnosis and Sex. Use percentiles to describe the distribution.
+
+The provided excel file was directly loaded for querying. Below query in SQLite includes required steps for data processing. Below query summarises the PrincipalDiagnosis and Sex values which correspond to quantile values of TotalCharges. For individual combinations of PrincipalDiagnosis and Sex, the number of cases were generally small which means identifying quantiles does not have provide any significant business insight.
+============================================================================
+WITH calc_charges AS(
+SELECT PrincipalDiagnosis, Sex, 
+CASE WHEN AccommodationCharge IS NULL THEN 0.0 ELSE CAST(AccommodationCharge AS REAL) END  As 'AccCharge' ,
+CASE WHEN CCU_Charges IS NULL THEN 0.0 ELSE CAST(CCU_Charges AS REAL) END  As 'CCU_Charges' ,
+CASE WHEN ICU_Charge IS NULL THEN 0.0 ELSE CAST(ICU_Charge AS REAL) END  As 'ICU_Charge' ,
+CASE WHEN TheatreCharge IS NULL THEN 0.0 ELSE CAST(TheatreCharge AS REAL) END  As 'TheatreCharge' ,
+CASE WHEN ProsthesisCharge IS NULL THEN 0.0 ELSE CAST(ProsthesisCharge AS REAL) END  As 'ProsthesisCharge' ,
+CASE WHEN OtherCharges IS NULL THEN 0.0 ELSE CAST(OtherCharges  AS REAL) END  As 'OtherCharges' ,
+CASE WHEN BundledCharges IS NULL THEN 0.0 ELSE CAST(BundledCharges AS REAL) END  As 'BundledCharges' 
+FROM  "Data Insights - Synthetic Dataset"
+),
+calc_total AS(
+SELECT PrincipalDiagnosis, Sex,
+AccCharge + CCU_Charges+ ICU_Charge + TheatreCharge + ProsthesisCharge + OtherCharges +  BundledCharges  As Total_Charges
+FROM calc_charges), 
+calc_percentile AS(
+SELECT PrincipalDiagnosis, Sex, AVG(Total_Charges) AS Mean_Total_Charges,
+NTILE(100) OVER (ORDER BY AVG(Total_Charges) ) AS 'Percentile'
+FROM calc_total
+GROUP BY PrincipalDiagnosis, Sex
+ORDER BY Percentile)
+
+SELECT 
+Percentile,
+MIN(Mean_Total_Charges),
+PrincipalDiagnosis,
+Sex
+FROM calc_percentile
+WHERE Percentile IN (1,25, 50, 75,100)
+GROUP BY PrincipalDiagnosis,Sex
+ORDER BY Percentile,MIN(Mean_Total_Charges), PrincipalDiagnosis,Sex;
+============================================================================
+
